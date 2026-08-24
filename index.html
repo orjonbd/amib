@@ -4,49 +4,89 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lite Gemini History</title>
     <style>
-        body { font-family: sans-serif; padding: 5px; font-size: 13px; }
-        .box { border: 1px solid #ccc; padding: 5px; margin-bottom: 8px; background: #f9f9f9; }
-        .user { color: blue; font-weight: bold; }
-        .ai { color: green; margin-top: 3px; }
-        .date-filter { background: #eee; padding: 5px; margin-bottom: 10px; }
+        body { font-family: sans-serif; padding: 5px; font-size: 13px; background: #fff; }
+        .box { border: 1px solid #aaa; padding: 6px; margin-bottom: 8px; background: #fdfdfd; }
+        .user { color: #00008b; font-weight: bold; }
+        .ai { color: #006400; margin-top: 4px; white-space: pre-wrap; }
+        .date-box { background: #eef; padding: 5px; margin-bottom: 10px; border: 1px solid #ccd; }
     </style>
 </head>
 <body>
 
-    <h3>Gemini AI Lite</h3>
+    <h3>Gemini Lite (Keypad)</h3>
 
-    <!-- নতুন মেসেজ পাঠানোর ফর্ম -->
-    <form action="/send" method="POST">
-        <textarea name="prompt" rows="2" style="width:95%" required></textarea><br>
-        <input type="submit" value="Send">
+    <!-- Question Form -->
+    <form action="YOUR_APPS_SCRIPT_URL_HERE" method="POST">
+        <input type="hidden" name="action" value="send">
+        <input type="hidden" id="redirect_url_send" name="redirect_url" value="">
+        <label><b>Enter Question:</b></label><br>
+        <textarea name="prompt" rows="3" style="width:95%;" required></textarea><br>
+        <input type="submit" value="Send Question">
     </form>
+
     <hr>
 
-    <!-- তারিখ সিলেক্ট করার Dropdown -->
-    <div class="date-filter">
-        <form action="/history" method="GET">
-            <label>তারিখ বেছে নিন:</label><br>
-            <select name="selected_date">
-                <option value="2026-08-24">24 Aug 2026</option>
-                <option value="2026-08-23">23 Aug 2026</option>
-            </select>
-            <input type="submit" value="Show">
+    <!-- Date Filter Dropdown -->
+    <div class="date-box">
+        <form action="" method="GET">
+            <label><b>Select Date:</b></label><br>
+            <select name="date" id="dateSelect"></select>
+            <input type="submit" value="Show History">
         </form>
     </div>
 
-    <h4>কথোপকথন হিস্ট্রি</h4>
+    <h4>History</h4>
+    <div id="historyContainer">Loading...</div>
 
-    <!-- মেসেজ লিস্ট (ডাটাবেজ থেকে যা আসবে) -->
-    <div class="box">
-        <div class="user">আপনি: কিপ্যাড ফোনে এটি কীভাবে কাজ করবে?</div>
-        <div class="ai">Gemini: এটি Serverless backend ও HTML ফর্মের মাধ্যমে কাজ করবে...</div>
-        <small style="color:gray;">10:15 AM</small>
-        <!-- ডিলিট করার ফর্ম -->
-        <form action="/delete" method="POST" style="display:inline;">
-            <input type="hidden" name="id" value="123">
-            <input type="submit" value="[Delete]" style="color:red; background:none; border:none; cursor:pointer;">
-        </form>
-    </div>
+    <script>
+        const currentUrl = window.location.href.split('?')[0];
+        document.getElementById('redirect_url_send').value = currentUrl;
 
+        const appsScriptUrl = "YOUR_APPS_SCRIPT_URL_HERE";
+        const urlParams = new URLSearchParams(window.location.search);
+        const selectedDate = urlParams.get('date') || "";
+
+        fetch(`${appsScriptUrl}?date=${selectedDate}`)
+            .then(res => res.json())
+            .then(data => {
+                const select = document.getElementById('dateSelect');
+                select.innerHTML = "";
+                data.dates.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d;
+                    opt.textContent = d;
+                    if (d === data.selectedDate) opt.selected = true;
+                    select.appendChild(opt);
+                });
+
+                const container = document.getElementById('historyContainer');
+                if (data.messages.length === 0) {
+                    container.innerHTML = "<p>No history found.</p>";
+                    return;
+                }
+
+                let html = "";
+                data.messages.reverse().forEach(msg => {
+                    html += `
+                        <div class="box">
+                            <div class="user">You: ${msg.prompt}</div>
+                            <div class="ai">Gemini: ${msg.response}</div>
+                            <br>
+                            <form action="${appsScriptUrl}" method="POST" style="display:inline;">
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="id" value="${msg.id}">
+                                <input type="hidden" name="date" value="${msg.date}">
+                                <input type="hidden" name="redirect_url" value="${currentUrl}">
+                                <input type="submit" value="[Delete Message]" style="color:red; font-size:11px;">
+                            </form>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            })
+            .catch(err => {
+                document.getElementById('historyContainer').innerHTML = "Failed to load data.";
+            });
+    </script>
 </body>
 </html>
